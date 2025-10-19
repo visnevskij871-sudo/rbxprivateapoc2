@@ -1,6 +1,6 @@
 -- ==============================================================
--- 🔫 RBXL CHEATS — Apocalypse Rising 2 • v2.3
--- 🎯 Features: Aimbot, No Recoil, No Reload, Wall ESP, Fly, NoClip
+-- 🎄 RBXL CHEATS — Apocalypse Rising 2 • v2.4 (NEW YEAR EDITION)
+-- 🧟 Features: Aimbot, No Recoil, No Reload, Zombie ESP, Fly, NoClip
 -- 🔒 Official Channel: https://t.me/rbxlcheats
 -- ⚠️ All scripts are from public sources. We are not responsible for their use.
 -- ==============================================================
@@ -14,7 +14,7 @@ local player = Players.LocalPlayer
 
 -- ==================== KEY SYSTEM ====================
 local KeySystem = {
-	_validKey = "AR2-WARZONE-PRIVATE",
+	_validKey = "AR2-WARZONE-FREE",
 	_activated = false
 }
 
@@ -32,42 +32,44 @@ function KeySystem:IsValid()
 	return self._activated
 end
 
--- ==================== ANTI-BAN ====================
+-- ==================== ENHANCED ANTI-BAN ====================
 local AntiBan = {
 	_lastUpdate = tick(),
 	_safeActions = 0,
 	_randomDelays = true,
-	_protectionEnabled = true
+	_protectionEnabled = true,
+	_noise = 0.02 -- human-like input noise
 }
 
 function AntiBan:SimulateHumanBehavior()
 	if not self._protectionEnabled then return end
-	if self._randomDelays and math.random(1, 100) < 30 then
-		wait(math.random(0.03, 0.12))
+	if math.random() < 0.25 then
+		wait(math.random() * 0.1)
 	end
-	local currentTime = tick()
-	if currentTime - self._lastUpdate < 0.06 then
-		self._safeActions = self._safeActions + 1
-		if self._safeActions > 15 then
-			wait(0.1)
-		end
-	else
-		self._safeActions = 0
-	end
-	self._lastUpdate = currentTime
+end
+
+function AntiBan:AddNoise(vector)
+	return vector + Vector3.new(
+		math.random() - 0.5,
+		math.random() - 0.5,
+		math.random() - 0.5
+	) * self._noise
 end
 
 function AntiBan:ProtectScript()
 	pcall(function()
 		script.Name = HttpService:GenerateGUID(false)
 		getfenv(0).debug = nil
+		-- Hide from common detectors
+		if getgenv then getgenv().Synapse = nil end
 	end)
 end
 
 -- ==================== MAIN TOOL ====================
 local AR2Tool = {
-	Version = "v2.3",
+	Version = "v2.4",
 	ESPEnabled = false,
+	ZombieESPEnabled = false,
 	AimbotEnabled = false,
 	NoRecoilEnabled = false,
 	NoReloadEnabled = false,
@@ -76,13 +78,13 @@ local AR2Tool = {
 
 	MaxDistance = 1500,
 	ESPElements = {},
-	AimTarget = nil,
+	ZombieHighlights = {},
 	BodyVelocity = nil,
 	Connections = {},
 	GUIInitialized = false
 }
 
--- ==================== ESP THROUGH WALLS ====================
+-- ==================== PLAYER ESP ====================
 function AR2Tool:ToggleESP()
 	if not KeySystem:IsValid() then return end
 	self.ESPEnabled = not self.ESPEnabled
@@ -92,10 +94,7 @@ function AR2Tool:ToggleESP()
 			self:UpdateESP()
 		end)
 	else
-		if self.Connections.esp then
-			self.Connections.esp:Disconnect()
-			self.Connections.esp = nil
-		end
+		if self.Connections.esp then self.Connections.esp:Disconnect() end
 		self:ClearESP()
 	end
 end
@@ -114,13 +113,6 @@ function AR2Tool:UpdateESP()
 			end
 		end
 	end
-
-	for otherPlayer, elements in pairs(self.ESPElements) do
-		if not otherPlayer or not otherPlayer.Character then
-			if elements.billboard and elements.billboard.Parent then elements.billboard:Destroy() end
-			self.ESPElements[otherPlayer] = nil
-		end
-	end
 end
 
 function AR2Tool:CreateOrUpdateESP(otherPlayer, character, playerRoot)
@@ -131,15 +123,15 @@ function AR2Tool:CreateOrUpdateESP(otherPlayer, character, playerRoot)
 
 	local distance = (playerRoot.Position - rootPart.Position).Magnitude
 	if distance > self.MaxDistance then
-		if self.ESPElements[otherPlayer] and self.ESPElements[otherPlayer].billboard then
-			self.ESPElements[otherPlayer].billboard:Destroy()
+		if self.ESPElements[otherPlayer] then
+			if self.ESPElements[otherPlayer].highlight then self.ESPElements[otherPlayer].highlight:Destroy() end
+			if self.ESPElements[otherPlayer].billboard then self.ESPElements[otherPlayer].billboard:Destroy() end
 			self.ESPElements[otherPlayer] = nil
 		end
 		return
 	end
 
-	local espData = self.ESPElements[otherPlayer]
-	if not espData or not espData.billboard or not espData.billboard.Parent then
+	if not self.ESPElements[otherPlayer] then
 		local highlight = Instance.new("Highlight")
 		highlight.FillColor = Color3.fromRGB(255, 0, 0)
 		highlight.FillTransparency = 0.7
@@ -150,7 +142,7 @@ function AR2Tool:CreateOrUpdateESP(otherPlayer, character, playerRoot)
 		highlight.Parent = character
 
 		local billboard = Instance.new("BillboardGui")
-		billboard.Size = UDim2.new(0, 160, 0, 40)
+		billboard.Size = UDim2.new(0, 150, 0, 40)
 		billboard.StudsOffset = Vector3.new(0, 3.5, 0)
 		billboard.AlwaysOnTop = true
 		billboard.LightInfluence = 0
@@ -160,7 +152,7 @@ function AR2Tool:CreateOrUpdateESP(otherPlayer, character, playerRoot)
 
 		local bg = Instance.new("Frame")
 		bg.Size = UDim2.new(1, 0, 1, 0)
-		bg.BackgroundColor3 = Color3.fromRGB(0, 10, 0)
+		bg.BackgroundColor3 = Color3.fromRGB(0, 20, 0)
 		bg.BackgroundTransparency = 0.6
 		bg.BorderSizePixel = 0
 		bg.Parent = billboard
@@ -195,35 +187,92 @@ end
 
 function AR2Tool:ClearESP()
 	for _, data in pairs(self.ESPElements) do
-		if data.highlight and data.highlight.Parent then data.highlight:Destroy() end
-		if data.billboard and data.billboard.Parent then data.billboard:Destroy() end
+		if data.highlight then data.highlight:Destroy() end
+		if data.billboard then data.billboard:Destroy() end
 	end
 	self.ESPElements = {}
 end
 
--- ==================== AIMBOT ====================
+-- ==================== ZOMBIE ESP ====================
+function AR2Tool:ToggleZombieESP()
+	if not KeySystem:IsValid() then return end
+	self.ZombieESPEnabled = not self.ZombieESPEnabled
+	if self.ZombieESPEnabled then
+		self.Connections.zombie = RunService.RenderStepped:Connect(function()
+			self:UpdateZombieESP()
+		end)
+	else
+		if self.Connections.zombie then self.Connections.zombie:Disconnect() end
+		self:ClearZombieESP()
+	end
+end
+
+function AR2Tool:UpdateZombieESP()
+	for _, npc in pairs(workspace:GetDescendants()) do
+		if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and not npc:FindFirstChild("PlayerGui") then
+			if npc.Name:match("Zombie") or npc.Name:match("Walker") or npc.Name:match("Boss") then
+				self:CreateOrUpdateZombieHighlight(npc)
+			end
+		end
+	end
+
+	-- Clean up dead zombies
+	for zombie, highlight in pairs(self.ZombieHighlights) do
+		if not zombie or not zombie.Parent then
+			if highlight and highlight.Parent then highlight:Destroy() end
+			self.ZombieHighlights[zombie] = nil
+		end
+	end
+end
+
+function AR2Tool:CreateOrUpdateZombieHighlight(zombie)
+	if self.ZombieHighlights[zombie] then return end
+
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(255, 50, 50)
+	highlight.FillTransparency = 0.65
+	highlight.OutlineColor = Color3.fromRGB(255, 100, 100)
+	highlight.OutlineTransparency = 0.4
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Adornee = zombie
+	highlight.Parent = zombie
+	self.ZombieHighlights[zombie] = highlight
+end
+
+function AR2Tool:ClearZombieESP()
+	for _, highlight in pairs(self.ZombieHighlights) do
+		if highlight and highlight.Parent then highlight:Destroy() end
+	end
+	self.ZombieHighlights = {}
+end
+
+-- ==================== AIMBOT (REAL) ====================
 function AR2Tool:ToggleAimbot()
 	if not KeySystem:IsValid() then return end
 	self.AimbotEnabled = not self.AimbotEnabled
 	if self.AimbotEnabled then
+		warn("⚠️ AIMBOT ACTIVE — HIGH RISK OF BAN IN AR2!")
 		self.Connections.aim = UserInputService.InputBegan:Connect(function(input, gp)
 			if gp or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
-			self:AimAtClosest()
+			self:AimAtNearest()
 		end)
+	else
+		if self.Connections.aim then self.Connections.aim:Disconnect() end
 	end
 end
 
-function AR2Tool:AimAtClosest()
+function AR2Tool:AimAtNearest()
 	if not self.AimbotEnabled then return end
 	local cam = workspace.CurrentCamera
 	if not cam then return end
 
-	local closestPlayer = nil
-	local closestDist = math.huge
-
 	local playerRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not playerRoot then return end
 
+	local closestTarget = nil
+	local closestDist = math.huge
+
+	-- Check players
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= player and p.Character then
 			local root = p.Character:FindFirstChild("HumanoidRootPart")
@@ -231,25 +280,28 @@ function AR2Tool:AimAtClosest()
 				local dist = (playerRoot.Position - root.Position).Magnitude
 				if dist < closestDist and dist <= self.MaxDistance then
 					closestDist = dist
-					closestPlayer = p
+					closestTarget = root
 				end
 			end
 		end
 	end
 
-	if closestPlayer and closestPlayer.Character then
-		local targetRoot = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if targetRoot then
-			local screenPos, onScreen = cam:WorldToViewportPoint(targetRoot.Position + Vector3.new(0, 1.5, 0))
-			if onScreen then
-				-- Simulate human-like aim (not instant)
-				local current = UserInputService:GetMouseLocation()
-				local delta = (Vector2.new(screenPos.X, screenPos.Y) - current) * 0.6
-				fireclickdetector(workspace:FindFirstChild("FakeClickDetector") or Instance.new("ClickDetector"), 0)
-				-- Actual mouse move is blocked in Roblox, so we rely on visual feedback only
-				-- In real exploit, this would move mouse — here we just highlight
+	-- Check zombies
+	for zombie, _ in pairs(self.ZombieHighlights) do
+		if zombie and zombie:FindFirstChild("HumanoidRootPart") then
+			local root = zombie.HumanoidRootPart
+			local dist = (playerRoot.Position - root.Position).Magnitude
+			if dist < closestDist and dist <= self.MaxDistance then
+				closestDist = dist
+				closestTarget = root
 			end
 		end
+	end
+
+	if closestTarget then
+		local targetPos = closestTarget.Position + Vector3.new(0, 1.5, 0)
+		local lookAt = CFrame.new(cam.CFrame.Position, targetPos)
+		cam.CFrame = lookAt
 	end
 end
 
@@ -257,26 +309,52 @@ end
 function AR2Tool:ToggleNoRecoil()
 	if not KeySystem:IsValid() then return end
 	self.NoRecoilEnabled = not self.NoRecoilEnabled
-	warn("⚠️ WARNING: No Recoil may trigger anti-cheat in AR2!")
+	if self.NoRecoilEnabled then
+		warn("⚠️ NO RECOIL ENABLED — MAY TRIGGER ANTI-CHEAT!")
+		self.Connections.recoil = RunService.RenderStepped:Connect(function()
+			local char = player.Character
+			if char then
+				local weapon = char:FindFirstChildWhichIsA("Tool")
+				if weapon and weapon:FindFirstChild("Recoil") then
+					weapon.Recoil.Value = 0
+				end
+			end
+		end)
+	else
+		if self.Connections.recoil then self.Connections.recoil:Disconnect() end
+	end
 end
 
 function AR2Tool:ToggleNoReload()
 	if not KeySystem:IsValid() then return end
 	self.NoReloadEnabled = not self.NoReloadEnabled
-	warn("⚠️ WARNING: No Reload is HIGH-RISK in AR2 — use at your own risk!")
+	if self.NoReloadEnabled then
+		warn("⚠️ NO RELOAD ENABLED — EXTREME BAN RISK!")
+		self.Connections.reload = RunService.RenderStepped:Connect(function()
+			local char = player.Character
+			if char then
+				local weapon = char:FindFirstChildWhichIsA("Tool")
+				if weapon and weapon:FindFirstChild("Ammo") and weapon:FindFirstChild("MaxAmmo") then
+					weapon.Ammo.Value = weapon.MaxAmmo.Value
+				end
+			end
+		end)
+	else
+		if self.Connections.reload then self.Connections.reload:Disconnect() end
+	end
 end
 
 -- ==================== FLY & NOCLIP ====================
 function AR2Tool:ToggleFly()
 	if not KeySystem:IsValid() then return end
 	self.FlyEnabled = not self.FlyEnabled
-	warn("⚠️ WARNING: Fly is easily detectable in AR2 — use only in safe zones!")
-	local character = player.Character
-	if not character then return end
-	local rootPart = character:FindFirstChild("HumanoidRootPart")
-	if not rootPart then return end
-
 	if self.FlyEnabled then
+		warn("⚠️ FLY ENABLED — USE ONLY IN SAFE AREAS!")
+		local character = player.Character
+		if not character then return end
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		if not rootPart then return end
+
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid then humanoid.PlatformStand = true end
 
@@ -310,7 +388,7 @@ function AR2Tool:ToggleFly()
 	else
 		if self.BodyVelocity then self.BodyVelocity:Destroy() end
 		if self.Connections.fly then self.Connections.fly:Disconnect() end
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if humanoid then humanoid.PlatformStand = false end
 	end
 end
@@ -318,8 +396,8 @@ end
 function AR2Tool:ToggleNoClip()
 	if not KeySystem:IsValid() then return end
 	self.NoClipEnabled = not self.NoClipEnabled
-	warn("⚠️ WARNING: NoClip is HIGH-RISK in AR2 — may cause instant ban!")
 	if self.NoClipEnabled then
+		warn("⚠️ NOCLIP ENABLED — HIGH BAN RISK!")
 		self.Connections.noclip = RunService.RenderStepped:Connect(function()
 			local char = player.Character
 			if char then
@@ -343,71 +421,75 @@ function AR2Tool:ToggleNoClip()
 	end
 end
 
--- ==================== DRAGGABLE UI (MILITARY STYLE) ====================
-local function makeDraggable(frame, dragBar)
-	local dragging = false
-	local dragStart = nil
-	local startPos = nil
+-- ==================== SNOW PARTICLES (NEW YEAR) ====================
+local function createSnowEffect(screenGui)
+	local snowContainer = Instance.new("Frame")
+	snowContainer.Size = UDim2.new(1, 0, 1, 0)
+	snowContainer.BackgroundTransparency = 1
+	snowContainer.Parent = screenGui
 
-	dragBar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = true
-			dragStart = UserInputService:GetMouseLocation()
-			startPos = frame.Position
-		end
-	end)
+	for i = 1, 30 do
+		spawn(function()
+			local flake = Instance.new("ImageLabel")
+			flake.Image = "rbxassetid://4833634950" -- snowflake
+			flake.Size = UDim2.new(0, math.random(10, 20), 0, math.random(10, 20))
+			flake.BackgroundTransparency = 1
+			flake.Position = UDim2.new(math.random(), 0, -0.1, 0)
+			flake.ZIndex = 1
+			flake.Parent = snowContainer
 
-	UserInputService.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-			local delta = UserInputService:GetMouseLocation() - dragStart
-			frame.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + delta.X,
-				startPos.Y.Scale, startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging = false
-		end
-	end)
+			while snowContainer and snowContainer.Parent do
+				flake.Position = flake.Position + UDim2.new(0, 0, 0.01, math.random(2, 5))
+				flake.Rotation = flake.Rotation + math.random(-5, 5)
+				wait(0.05)
+				if flake.Position.Y.Scale > 1.1 then
+					flake.Position = UDim2.new(math.random(), 0, -0.1, 0)
+				end
+			end
+		end)
+		wait(0.1)
+	end
 end
 
+-- ==================== NEW YEAR UI ====================
 function AR2Tool:CreateModernUI()
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "AR2_Cheats_UI"
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	-- Snow effect
+	createSnowEffect(screenGui)
 
 	local main = Instance.new("Frame")
-	main.Size = UDim2.new(0, 660, 0, 400)
-	main.Position = UDim2.new(0.5, -330, 0.1, 0)
-	main.BackgroundColor3 = Color3.fromRGB(15, 20, 15)
-	main.BackgroundTransparency = 0.2
+	main.Size = UDim2.new(0, 680, 0, 420)
+	main.Position = UDim2.new(0.5, -340, 0.1, 0)
+	main.BackgroundColor3 = Color3.fromRGB(10, 25, 10)
+	main.BackgroundTransparency = 0.25
 	main.BorderSizePixel = 0
 	main.Visible = false
 	main.Parent = screenGui
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
+	corner.CornerRadius = UDim.new(0, 16)
 	corner.Parent = main
 
 	local topBar = Instance.new("Frame")
-	topBar.Size = UDim2.new(1, 0, 0, 36)
+	topBar.Size = UDim2.new(1, 0, 0, 40)
 	topBar.Position = UDim2.new(0, 0, 0, 0)
-	topBar.BackgroundColor3 = Color3.fromRGB(30, 40, 30)
+	topBar.BackgroundColor3 = Color3.fromRGB(20, 50, 20)
 	topBar.BorderSizePixel = 0
 	topBar.Parent = main
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0, 320, 1, 0)
+	title.Size = UDim2.new(0, 340, 1, 0)
 	title.Position = UDim2.new(0, 12, 0, 0)
 	title.BackgroundTransparency = 1
-	title.Text = "🔫 AR2 CHEATS • " .. self.Version
-	title.TextColor3 = Color3.fromRGB(220, 255, 220)
-	title.TextSize = 15
-	title.Font = Enum.Font.GothamBold
+	title.Text = "🎄 AR2 CHEATS • " .. self.Version .. " • NEW YEAR"
+	title.TextColor3 = Color3.fromRGB(255, 220, 100) -- gold
+	title.TextSize = 16
+	title.Font = Enum.Font.GothamBlack
 	title.Parent = topBar
 
 	local tg = Instance.new("TextLabel")
@@ -415,32 +497,57 @@ function AR2Tool:CreateModernUI()
 	tg.Position = UDim2.new(0.5, -100, 0, 0)
 	tg.BackgroundTransparency = 1
 	tg.Text = "t.me/rbxlcheats"
-	tg.TextColor3 = Color3.fromRGB(180, 220, 180)
+	tg.TextColor3 = Color3.fromRGB(200, 240, 200)
 	tg.TextSize = 12
 	tg.Font = Enum.Font.Gotham
 	tg.Parent = topBar
 
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 30, 0, 26)
-	closeBtn.Position = UDim2.new(1, -32, 0.5, -13)
+	closeBtn.Size = UDim2.new(0, 34, 0, 28)
+	closeBtn.Position = UDim2.new(1, -36, 0.5, -14)
 	closeBtn.Text = "×"
 	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
 	closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	closeBtn.TextSize = 18
+	closeBtn.TextSize = 20
 	closeBtn.Font = Enum.Font.GothamBold
 	closeBtn.Parent = topBar
+
+	local function makeDraggable(frame, dragBar)
+		local dragging = false
+		dragBar.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				dragging = true
+				local startPos = frame.Position
+				local dragStart = UserInputService:GetMouseLocation()
+				UserInputService.InputChanged:Connect(function(_, input)
+					if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+						local delta = UserInputService:GetMouseLocation() - dragStart
+						frame.Position = UDim2.new(
+							startPos.X.Scale, startPos.X.Offset + delta.X,
+							startPos.Y.Scale, startPos.Y.Offset + delta.Y
+						)
+					end
+				end)
+				UserInputService.InputEnded:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+						dragging = false
+					end
+				end)
+			end
+		end)
+	end
 
 	makeDraggable(main, topBar)
 
 	local tabs = Instance.new("Frame")
-	tabs.Size = UDim2.new(1, -20, 0, 34)
-	tabs.Position = UDim2.new(0, 10, 0, 42)
+	tabs.Size = UDim2.new(1, -20, 0, 36)
+	tabs.Position = UDim2.new(0, 10, 0, 46)
 	tabs.BackgroundTransparency = 1
 	tabs.Parent = main
 
 	local content = Instance.new("Frame")
-	content.Size = UDim2.new(1, -20, 0, 270)
-	content.Position = UDim2.new(0, 10, 0, 80)
+	content.Size = UDim2.new(1, -20, 0, 290)
+	content.Position = UDim2.new(0, 10, 0, 86)
 	content.BackgroundTransparency = 1
 	content.Parent = main
 
@@ -460,17 +567,26 @@ function AR2Tool:CreateModernUI()
 	movementContent.Visible = false
 
 	-- Tab switching
+	local function switchTab(activeTab, activeContent, others, otherContents)
+		activeTab.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
+		activeContent.Visible = true
+		for i, tab in ipairs(others) do
+			tab.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
+			otherContents[i].Visible = false
+		end
+	end
+
 	mainTab.MouseButton1Click:Connect(function()
-		self:SwitchTab(mainTab, mainContent, {visualTab, combatTab, movementTab}, {visualContent, combatContent, movementContent})
+		switchTab(mainTab, mainContent, {visualTab, combatTab, movementTab}, {visualContent, combatContent, movementContent})
 	end)
 	visualTab.MouseButton1Click:Connect(function()
-		self:SwitchTab(visualTab, visualContent, {mainTab, combatTab, movementTab}, {mainContent, combatContent, movementContent})
+		switchTab(visualTab, visualContent, {mainTab, combatTab, movementTab}, {mainContent, combatContent, movementContent})
 	end)
 	combatTab.MouseButton1Click:Connect(function()
-		self:SwitchTab(combatTab, combatContent, {mainTab, visualTab, movementTab}, {mainContent, visualContent, movementContent})
+		switchTab(combatTab, combatContent, {mainTab, visualTab, movementTab}, {mainContent, visualContent, movementContent})
 	end)
 	movementTab.MouseButton1Click:Connect(function()
-		self:SwitchTab(movementTab, movementContent, {mainTab, visualTab, combatTab}, {mainContent, visualContent, combatContent})
+		switchTab(movementTab, movementContent, {mainTab, visualTab, combatTab}, {mainContent, visualContent, combatContent})
 	end)
 
 	closeBtn.MouseButton1Click:Connect(function()
@@ -483,14 +599,14 @@ function AR2Tool:CreateModernUI()
 		end
 	end)
 
-	-- Telegram footer
+	-- Footer
 	local footer = Instance.new("TextLabel")
-	footer.Size = UDim2.new(1, 0, 0, 20)
-	footer.Position = UDim2.new(0, 0, 1, -20)
+	footer.Size = UDim2.new(1, 0, 0, 22)
+	footer.Position = UDim2.new(0, 0, 1, -22)
 	footer.BackgroundTransparency = 1
 	footer.Text = "📢 Official Channel: t.me/rbxlcheats"
-	footer.TextColor3 = Color3.fromRGB(160, 200, 160)
-	footer.TextSize = 11
+	footer.TextColor3 = Color3.fromRGB(180, 220, 180)
+	footer.TextSize = 12
 	footer.Font = Enum.Font.Gotham
 	footer.Parent = main
 
@@ -503,37 +619,17 @@ function AR2Tool:CreateTab(name, index, parent, active)
 	tab.Size = UDim2.new(0.24, -5, 1, 0)
 	tab.Position = UDim2.new(0.25 * index, 0, 0, 0)
 	tab.Text = name
-	tab.BackgroundColor3 = active and Color3.fromRGB(50, 80, 50) or Color3.fromRGB(30, 50, 30)
-	tab.TextColor3 = Color3.fromRGB(240, 255, 240)
+	tab.BackgroundColor3 = active and Color3.fromRGB(60, 100, 60) or Color3.fromRGB(30, 60, 30)
+	tab.TextColor3 = Color3.fromRGB(250, 255, 240)
 	tab.TextSize = 12
 	tab.Font = Enum.Font.GothamBold
 	tab.Parent = parent
 
 	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 6)
+	c.CornerRadius = UDim.new(0, 8)
 	c.Parent = tab
 
-	tab.MouseEnter:Connect(function()
-		if not active then
-			TweenService:Create(tab, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 70, 40)}):Play()
-		end
-	end)
-	tab.MouseLeave:Connect(function()
-		if not active then
-			TweenService:Create(tab, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 50, 30)}):Play()
-		end
-	end)
-
 	return tab
-end
-
-function AR2Tool:SwitchTab(activeTab, activeContent, otherTabs, otherContents)
-	activeTab.BackgroundColor3 = Color3.fromRGB(50, 80, 50)
-	activeContent.Visible = true
-	for i, tab in ipairs(otherTabs) do
-		tab.BackgroundColor3 = Color3.fromRGB(30, 50, 30)
-		otherContents[i].Visible = false
-	end
 end
 
 function AR2Tool:CreateMainTab(parent)
@@ -543,30 +639,30 @@ function AR2Tool:CreateMainTab(parent)
 	content.Parent = parent
 
 	local keyInput = Instance.new("TextBox")
-	keyInput.Size = UDim2.new(0.55, 0, 0, 34)
+	keyInput.Size = UDim2.new(0.55, 0, 0, 36)
 	keyInput.Position = UDim2.new(0.22, 0, 0, 20)
 	keyInput.PlaceholderText = "Enter activation key..."
 	keyInput.Text = ""
-	keyInput.BackgroundColor3 = Color3.fromRGB(35, 50, 35)
-	keyInput.TextColor3 = Color3.fromRGB(240, 255, 240)
+	keyInput.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
+	keyInput.TextColor3 = Color3.fromRGB(250, 255, 240)
 	keyInput.Parent = content
 
 	local activateBtn = Instance.new("TextButton")
-	activateBtn.Size = UDim2.new(0.28, 0, 0, 34)
+	activateBtn.Size = UDim2.new(0.28, 0, 0, 36)
 	activateBtn.Position = UDim2.new(0.68, 0, 0, 20)
 	activateBtn.Text = "⚡ ACTIVATE"
-	activateBtn.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+	activateBtn.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
 	activateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	activateBtn.TextSize = 12
 	activateBtn.Font = Enum.Font.GothamBold
 	activateBtn.Parent = content
 
 	local infoLabel = Instance.new("TextLabel")
-	infoLabel.Size = UDim2.new(1, -20, 0, 180)
+	infoLabel.Size = UDim2.new(1, -20, 0, 190)
 	infoLabel.Position = UDim2.new(0, 10, 0, 70)
 	infoLabel.BackgroundTransparency = 1
-	infoLabel.Text = "Apocalypse Rising 2 Cheats\n\n⚡ Features:\n• Wall ESP (up to 1500m)\n• Aimbot (on click)\n• No Recoil & No Reload\n• Fly & NoClip\n\n⚠️ HIGH-RISK functions marked with warnings\n\n⌨️ Insert — Open menu"
-	infoLabel.TextColor3 = Color3.fromRGB(220, 240, 220)
+	infoLabel.Text = "Apocalypse Rising 2 • New Year Edition\n\n✨ Features:\n• Player ESP (1500m)\n• Zombie/Boss Highlight\n• Real Aimbot (on click)\n• No Recoil & No Reload\n• Fly & NoClip\n• Falling snow UI effect\n\n⚠️ HIGH-RISK functions show warnings"
+	infoLabel.TextColor3 = Color3.fromRGB(230, 250, 230)
 	infoLabel.TextSize = 12
 	infoLabel.Font = Enum.Font.Gotham
 	infoLabel.Parent = content
@@ -578,7 +674,7 @@ function AR2Tool:CreateMainTab(parent)
 		if success then
 			keyInput.Visible = false
 			activateBtn.Visible = false
-			infoLabel.Text = "✅ " .. message .. "\n\n🔫 All features unlocked!\n\nAR2 CHEATS • " .. self.Version .. "\n🛡️ Use responsibly!"
+			infoLabel.Text = "✅ " .. message .. "\n\n🎄 Happy New Year!\n\n🔫 All features unlocked!\nAR2 CHEATS • " .. self.Version
 		else
 			infoLabel.Text = "❌ " .. message .. "\n\n🔑 Key: AR2-WARZONE-FREE\n📢 t.me/rbxlcheats"
 		end
@@ -593,8 +689,12 @@ function AR2Tool:CreateVisualTab(parent)
 	content.BackgroundTransparency = 1
 	content.Parent = parent
 
-	self:CreateFeatureButton("🔴 Wall ESP (1500m)", "See players through walls", 10, 10, content, function()
+	self:CreateFeatureButton("🔴 Player ESP (1500m)", "See players through walls", 10, 10, content, function()
 		self:ToggleESP()
+	end)
+
+	self:CreateFeatureButton("🧟 Zombie Highlight", "Red boxes on all zombies/bosses", 10, 60, content, function()
+		self:ToggleZombieESP()
 	end)
 
 	return content
@@ -606,12 +706,11 @@ function AR2Tool:CreateCombatTab(parent)
 	content.BackgroundTransparency = 1
 	content.Parent = parent
 
-	self:CreateFeatureButton("🎯 Aimbot (Click)", "Auto-aim on mouse click", 10, 10, content, function()
+	self:CreateFeatureButton("🎯 Aimbot (Click)", "Auto-aim at players & zombies", 10, 10, content, function()
 		self:ToggleAimbot()
-		warn("⚠️ Aimbot is HIGH-RISK in AR2 — may cause instant ban!")
 	end)
 
-	self:CreateFeatureButton("🔄 No Recoil", "Eliminate weapon kickback", 10, 60, content, function()
+	self:CreateFeatureButton("🔄 No Recoil", "Zero weapon kickback", 10, 60, content, function()
 		self:ToggleNoRecoil()
 	end)
 
@@ -641,24 +740,24 @@ end
 
 function AR2Tool:CreateFeatureButton(name, desc, x, y, parent, callback)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.45, 0, 0, 40)
+	btn.Size = UDim2.new(0.45, 0, 0, 42)
 	btn.Position = UDim2.new(0, x, 0, y)
 	btn.Text = name
-	btn.BackgroundColor3 = Color3.fromRGB(40, 60, 40)
-	btn.TextColor3 = Color3.fromRGB(240, 255, 240)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+	btn.TextColor3 = Color3.fromRGB(250, 255, 240)
 	btn.TextSize = 12
 	btn.Font = Enum.Font.GothamBold
 	btn.Parent = parent
 
 	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 6)
+	c.CornerRadius = UDim.new(0, 8)
 	c.Parent = btn
 
 	btn.MouseEnter:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(50, 80, 50)}):Play()
+		TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(60, 110, 60)}):Play()
 	end)
 	btn.MouseLeave:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 60, 40)}):Play()
+		TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 80, 40)}):Play()
 	end)
 
 	btn.MouseButton1Click:Connect(callback)
@@ -668,7 +767,7 @@ function AR2Tool:CreateFeatureButton(name, desc, x, y, parent, callback)
 	descLabel.Position = UDim2.new(0, 0, 1, -14)
 	descLabel.BackgroundTransparency = 1
 	descLabel.Text = desc
-	descLabel.TextColor3 = Color3.fromRGB(180, 220, 180)
+	descLabel.TextColor3 = Color3.fromRGB(190, 230, 190)
 	descLabel.TextSize = 9
 	descLabel.Font = Enum.Font.Gotham
 	descLabel.Parent = btn
@@ -692,7 +791,8 @@ else
 end
 
 print("✅ RBXL CHEATS — Apocalypse Rising 2 " .. AR2Tool.Version .. " loaded!")
+print("🎄 New Year Edition with Snow UI!")
 print("📢 Official Channel: https://t.me/rbxlcheats")
 print("🔑 Key: AR2-WARZONE-FREE")
-print("⚠️ HIGH-RISK functions include warnings. Use at your own risk!")
+print("⚠️ Use HIGH-RISK features responsibly!")
 print("⌨️ Press Insert to open menu")
