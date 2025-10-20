@@ -1,7 +1,8 @@
 -- ==============================================================
--- 🎄 RBXL CHEATS — Apocalypse Rising 2 • v2.6 (NEW YEAR EDITION)
--- 🔒 Официальный канал RBXL CHEATS скрипты и новости Roblox.
--- ⚠️ Внимание - канал не несет ответственность за использование скриптов и других инструментов, все скрипты предоставлены из открытых источников. Мы не несём ответственность за их использование!!!
+-- 🎄 RBXL CHEATS — Apocalypse Rising 2 • v2.4 (NEW YEAR EDITION)
+-- 🧟 Features: Aimbot, No Recoil, No Reload, Zombie ESP, Fly, NoClip
+-- 🔒 Official Channel: https://t.me/rbxlcheats
+-- ⚠️ All scripts are from public sources. We are not responsible for their use.
 -- ==============================================================
 
 local Players = game:GetService("Players")
@@ -21,9 +22,9 @@ function KeySystem:Validate(inputKey)
 	if self._activated then return true end
 	if inputKey == self._validKey then
 		self._activated = true
-		return true, "✅ АКТИВИРОВАНО!"
+		return true, "✅ ACTIVATED!"
 	else
-		return false, "❌ НЕВЕРНЫЙ КЛЮЧ!"
+		return false, "❌ INVALID KEY!"
 	end
 end
 
@@ -31,31 +32,42 @@ function KeySystem:IsValid()
 	return self._activated
 end
 
--- ==================== ANTI-BAN ====================
+-- ==================== ENHANCED ANTI-BAN ====================
 local AntiBan = {
 	_lastUpdate = tick(),
 	_safeActions = 0,
 	_randomDelays = true,
-	_protectionEnabled = true
+	_protectionEnabled = true,
+	_noise = 0.02 -- human-like input noise
 }
 
 function AntiBan:SimulateHumanBehavior()
 	if not self._protectionEnabled then return end
-	if math.random() < 0.2 then
+	if math.random() < 0.25 then
 		wait(math.random() * 0.1)
 	end
+end
+
+function AntiBan:AddNoise(vector)
+	return vector + Vector3.new(
+		math.random() - 0.5,
+		math.random() - 0.5,
+		math.random() - 0.5
+	) * self._noise
 end
 
 function AntiBan:ProtectScript()
 	pcall(function()
 		script.Name = HttpService:GenerateGUID(false)
 		getfenv(0).debug = nil
+		-- Hide from common detectors
+		if getgenv then getgenv().Synapse = nil end
 	end)
 end
 
 -- ==================== MAIN TOOL ====================
 local AR2Tool = {
-	Version = "v2.6",
+	Version = "v2.4",
 	ESPEnabled = false,
 	ZombieESPEnabled = false,
 	AimbotEnabled = false,
@@ -64,15 +76,15 @@ local AR2Tool = {
 	FlyEnabled = false,
 	NoClipEnabled = false,
 
-	MaxDistance = 1500, -- Default
+	MaxDistance = 1500,
 	ESPElements = {},
-	ZombieESP = {},
+	ZombieHighlights = {},
 	BodyVelocity = nil,
 	Connections = {},
 	GUIInitialized = false
 }
 
--- ==================== PLAYER ESP (RED) ====================
+-- ==================== PLAYER ESP ====================
 function AR2Tool:ToggleESP()
 	if not KeySystem:IsValid() then return end
 	self.ESPEnabled = not self.ESPEnabled
@@ -97,13 +109,13 @@ function AR2Tool:UpdateESP()
 		if otherPlayer ~= player then
 			local character = otherPlayer.Character
 			if character then
-				self:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
+				self:CreateOrUpdateESP(otherPlayer, character, playerRoot)
 			end
 		end
 	end
 end
 
-function AR2Tool:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
+function AR2Tool:CreateOrUpdateESP(otherPlayer, character, playerRoot)
 	if not otherPlayer or not character or not playerRoot then return end
 
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -112,7 +124,9 @@ function AR2Tool:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
 	local distance = (playerRoot.Position - rootPart.Position).Magnitude
 	if distance > self.MaxDistance then
 		if self.ESPElements[otherPlayer] then
-			self:DestroyPlayerESP(otherPlayer)
+			if self.ESPElements[otherPlayer].highlight then self.ESPElements[otherPlayer].highlight:Destroy() end
+			if self.ESPElements[otherPlayer].billboard then self.ESPElements[otherPlayer].billboard:Destroy() end
+			self.ESPElements[otherPlayer] = nil
 		end
 		return
 	end
@@ -138,7 +152,7 @@ function AR2Tool:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
 
 		local bg = Instance.new("Frame")
 		bg.Size = UDim2.new(1, 0, 1, 0)
-		bg.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+		bg.BackgroundColor3 = Color3.fromRGB(0, 20, 0)
 		bg.BackgroundTransparency = 0.6
 		bg.BorderSizePixel = 0
 		bg.Parent = billboard
@@ -147,7 +161,7 @@ function AR2Tool:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
 		nameLabel.Size = UDim2.new(1, 0, 0, 20)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.Text = otherPlayer.Name
-		nameLabel.TextColor3 = Color3.fromRGB(255, 200, 200)
+		nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 		nameLabel.TextSize = 11
 		nameLabel.Font = Enum.Font.GothamBold
 		nameLabel.Parent = billboard
@@ -157,154 +171,87 @@ function AR2Tool:CreateOrUpdatePlayerESP(otherPlayer, character, playerRoot)
 		distLabel.Size = UDim2.new(1, 0, 0, 18)
 		distLabel.Position = UDim2.new(0, 0, 0, 20)
 		distLabel.BackgroundTransparency = 1
-		distLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
+		distLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
 		distLabel.TextSize = 10
 		distLabel.Font = Enum.Font.Gotham
 		distLabel.Parent = billboard
 
-		self.ESPElements[otherPlayer] = { highlight = highlight, billboard = billboard }
+		self.ESPElements[otherPlayer] = { highlight = highlight, billboard = billboard, distLabel = distLabel }
 	end
 
-	local distLabel = self.ESPElements[otherPlayer].billboard:FindFirstChild("Dist")
+	local distLabel = self.ESPElements[otherPlayer].distLabel
 	if distLabel then
-		distLabel.Text = string.format("📏 %d м", math.floor(distance))
-	end
-end
-
-function AR2Tool:DestroyPlayerESP(player)
-	local data = self.ESPElements[player]
-	if data then
-		if data.highlight and data.highlight.Parent then data.highlight:Destroy() end
-		if data.billboard and data.billboard.Parent then data.billboard:Destroy() end
-		self.ESPElements[player] = nil
+		distLabel.Text = string.format("📏 %d m", math.floor(distance))
 	end
 end
 
 function AR2Tool:ClearESP()
-	for p, _ in pairs(self.ESPElements) do
-		self:DestroyPlayerESP(p)
+	for _, data in pairs(self.ESPElements) do
+		if data.highlight then data.highlight:Destroy() end
+		if data.billboard then data.billboard:Destroy() end
 	end
 	self.ESPElements = {}
 end
 
--- ==================== ZOMBIE ESP (GREEN) — OPTIMIZED ====================
+-- ==================== ZOMBIE ESP ====================
 function AR2Tool:ToggleZombieESP()
 	if not KeySystem:IsValid() then return end
 	self.ZombieESPEnabled = not self.ZombieESPEnabled
 	if self.ZombieESPEnabled then
-		self.Connections.zombieScan = RunService.Heartbeat:Connect(function()
-			self:ScanForZombies()
-		end)
-		self.Connections.zombieCleanup = RunService.Heartbeat:Connect(function()
-			if tick() % 2 < 0.05 then
-				self:CleanupZombies()
-			end
+		self.Connections.zombie = RunService.RenderStepped:Connect(function()
+			self:UpdateZombieESP()
 		end)
 	else
-		if self.Connections.zombieScan then self.Connections.zombieScan:Disconnect() end
-		if self.Connections.zombieCleanup then self.Connections.zombieCleanup:Disconnect() end
+		if self.Connections.zombie then self.Connections.zombie:Disconnect() end
 		self:ClearZombieESP()
 	end
 end
 
-function AR2Tool:ScanForZombies()
-	local possibleContainers = {
-		workspace:FindFirstChild("NPCs"),
-		workspace:FindFirstChild("Enemies"),
-		workspace
-	}
-
-	for _, container in ipairs(possibleContainers) do
-		if container then
-			for _, npc in pairs(container:GetChildren()) do
-				if self:IsZombie(npc) then
-					self:CreateOrUpdateZombieESP(npc)
-				end
+function AR2Tool:UpdateZombieESP()
+	for _, npc in pairs(workspace:GetDescendants()) do
+		if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and not npc:FindFirstChild("PlayerGui") then
+			if npc.Name:match("Zombie") or npc.Name:match("Walker") or npc.Name:match("Boss") then
+				self:CreateOrUpdateZombieHighlight(npc)
 			end
+		end
+	end
+
+	-- Clean up dead zombies
+	for zombie, highlight in pairs(self.ZombieHighlights) do
+		if not zombie or not zombie.Parent then
+			if highlight and highlight.Parent then highlight:Destroy() end
+			self.ZombieHighlights[zombie] = nil
 		end
 	end
 end
 
-function AR2Tool:IsZombie(obj)
-	if not obj or not obj:IsA("Model") then return false end
-	if obj:FindFirstChild("PlayerGui") then return false end
-	local humanoid = obj:FindFirstChild("Humanoid")
-	local root = obj:FindFirstChild("HumanoidRootPart")
-	if not humanoid or not root then return false end
-	local name = obj.Name:lower()
-	return name:find("zombie") or name:find("walker") or name:find("boss") or name:find("enemy")
-end
-
-function AR2Tool:CreateOrUpdateZombieESP(zombie)
-	if self.ZombieESP[zombie] then return end
-
-	local rootPart = zombie:FindFirstChild("HumanoidRootPart")
-	if not rootPart then return end
-
-	local distance = (player.Character and player.Character:FindFirstChild("HumanoidRootPart") and (player.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude) or math.huge
-	if distance > self.MaxDistance then return end
+function AR2Tool:CreateOrUpdateZombieHighlight(zombie)
+	if self.ZombieHighlights[zombie] then return end
 
 	local highlight = Instance.new("Highlight")
-	highlight.FillColor = Color3.fromRGB(0, 255, 136)
+	highlight.FillColor = Color3.fromRGB(255, 50, 50)
 	highlight.FillTransparency = 0.65
-	highlight.OutlineColor = Color3.fromRGB(100, 255, 200)
+	highlight.OutlineColor = Color3.fromRGB(255, 100, 100)
 	highlight.OutlineTransparency = 0.4
 	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Adornee = zombie
 	highlight.Parent = zombie
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.new(0, 140, 0, 30)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
-	billboard.ResetOnSpawn = false
-	billboard.Adornee = rootPart
-	billboard.Parent = zombie
-
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.new(1, 0, 1, 0)
-	bg.BackgroundColor3 = Color3.fromRGB(0, 30, 10)
-	bg.BackgroundTransparency = 0.6
-	bg.BorderSizePixel = 0
-	bg.Parent = billboard
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 20)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = "🧟 Зомби"
-	nameLabel.TextColor3 = Color3.fromRGB(200, 255, 220)
-	nameLabel.TextSize = 11
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.Parent = billboard
-
-	self.ZombieESP[zombie] = { highlight = highlight, billboard = billboard }
-end
-
-function AR2Tool:CleanupZombies()
-	for zombie, data in pairs(self.ZombieESP) do
-		if not zombie or not zombie.Parent or not zombie:FindFirstChild("HumanoidRootPart") then
-			if data.highlight and data.highlight.Parent then data.highlight:Destroy() end
-			if data.billboard and data.billboard.Parent then data.billboard:Destroy() end
-			self.ZombieESP[zombie] = nil
-		end
-	end
+	self.ZombieHighlights[zombie] = highlight
 end
 
 function AR2Tool:ClearZombieESP()
-	for _, data in pairs(self.ZombieESP) do
-		if data.highlight and data.highlight.Parent then data.highlight:Destroy() end
-		if data.billboard and data.billboard.Parent then data.billboard:Destroy() end
+	for _, highlight in pairs(self.ZombieHighlights) do
+		if highlight and highlight.Parent then highlight:Destroy() end
 	end
-	self.ZombieESP = {}
+	self.ZombieHighlights = {}
 end
 
--- ==================== AIMBOT ====================
+-- ==================== AIMBOT (REAL) ====================
 function AR2Tool:ToggleAimbot()
 	if not KeySystem:IsValid() then return end
 	self.AimbotEnabled = not self.AimbotEnabled
 	if self.AimbotEnabled then
-		warn("⚠️ AIMBOT АКТИВЕН — ВЫСОКИЙ РИСК БАНА В AR2!")
+		warn("⚠️ AIMBOT ACTIVE — HIGH RISK OF BAN IN AR2!")
 		self.Connections.aim = UserInputService.InputBegan:Connect(function(input, gp)
 			if gp or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 			self:AimAtNearest()
@@ -325,7 +272,7 @@ function AR2Tool:AimAtNearest()
 	local closestTarget = nil
 	local closestDist = math.huge
 
-	-- Players
+	-- Check players
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= player and p.Character then
 			local root = p.Character:FindFirstChild("HumanoidRootPart")
@@ -339,8 +286,8 @@ function AR2Tool:AimAtNearest()
 		end
 	end
 
-	-- Zombies
-	for zombie, _ in pairs(self.ZombieESP) do
+	-- Check zombies
+	for zombie, _ in pairs(self.ZombieHighlights) do
 		if zombie and zombie:FindFirstChild("HumanoidRootPart") then
 			local root = zombie.HumanoidRootPart
 			local dist = (playerRoot.Position - root.Position).Magnitude
@@ -363,7 +310,7 @@ function AR2Tool:ToggleNoRecoil()
 	if not KeySystem:IsValid() then return end
 	self.NoRecoilEnabled = not self.NoRecoilEnabled
 	if self.NoRecoilEnabled then
-		warn("⚠️ NO RECOIL ВКЛЮЧЕН — МОЖЕТ ВЫЗВАТЬ АНТИЧИТ!")
+		warn("⚠️ NO RECOIL ENABLED — MAY TRIGGER ANTI-CHEAT!")
 		self.Connections.recoil = RunService.RenderStepped:Connect(function()
 			local char = player.Character
 			if char then
@@ -382,7 +329,7 @@ function AR2Tool:ToggleNoReload()
 	if not KeySystem:IsValid() then return end
 	self.NoReloadEnabled = not self.NoReloadEnabled
 	if self.NoReloadEnabled then
-		warn("⚠️ NO RELOAD ВКЛЮЧЕН — ЭКСТРЕМАЛЬНЫЙ РИСК БАНА!")
+		warn("⚠️ NO RELOAD ENABLED — EXTREME BAN RISK!")
 		self.Connections.reload = RunService.RenderStepped:Connect(function()
 			local char = player.Character
 			if char then
@@ -402,7 +349,7 @@ function AR2Tool:ToggleFly()
 	if not KeySystem:IsValid() then return end
 	self.FlyEnabled = not self.FlyEnabled
 	if self.FlyEnabled then
-		warn("⚠️ FLY ВКЛЮЧЕН — ИСПОЛЬЗУЙТЕ ТОЛЬКО В БЕЗОПАСНЫХ ЗОНАХ!")
+		warn("⚠️ FLY ENABLED — USE ONLY IN SAFE AREAS!")
 		local character = player.Character
 		if not character then return end
 		local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -450,7 +397,7 @@ function AR2Tool:ToggleNoClip()
 	if not KeySystem:IsValid() then return end
 	self.NoClipEnabled = not self.NoClipEnabled
 	if self.NoClipEnabled then
-		warn("⚠️ NOCLIP ВКЛЮЧЕН — ВЫСОКИЙ РИСК БАНА!")
+		warn("⚠️ NOCLIP ENABLED — HIGH BAN RISK!")
 		self.Connections.noclip = RunService.RenderStepped:Connect(function()
 			local char = player.Character
 			if char then
@@ -474,37 +421,37 @@ function AR2Tool:ToggleNoClip()
 	end
 end
 
--- ==================== SNOW EFFECT ====================
+-- ==================== SNOW PARTICLES (NEW YEAR) ====================
 local function createSnowEffect(screenGui)
 	local snowContainer = Instance.new("Frame")
 	snowContainer.Size = UDim2.new(1, 0, 1, 0)
 	snowContainer.BackgroundTransparency = 1
 	snowContainer.Parent = screenGui
 
-	for i = 1, 25 do
+	for i = 1, 30 do
 		spawn(function()
 			local flake = Instance.new("ImageLabel")
-			flake.Image = "rbxassetid://4833634950"
-			flake.Size = UDim2.new(0, math.random(10, 18), 0, math.random(10, 18))
+			flake.Image = "rbxassetid://4833634950" -- snowflake
+			flake.Size = UDim2.new(0, math.random(10, 20), 0, math.random(10, 20))
 			flake.BackgroundTransparency = 1
 			flake.Position = UDim2.new(math.random(), 0, -0.1, 0)
 			flake.ZIndex = 1
 			flake.Parent = snowContainer
 
 			while snowContainer and snowContainer.Parent do
-				flake.Position = flake.Position + UDim2.new(0, 0, 0.01, math.random(2, 4))
-				flake.Rotation = flake.Rotation + math.random(-4, 4)
-				wait(0.06)
+				flake.Position = flake.Position + UDim2.new(0, 0, 0.01, math.random(2, 5))
+				flake.Rotation = flake.Rotation + math.random(-5, 5)
+				wait(0.05)
 				if flake.Position.Y.Scale > 1.1 then
 					flake.Position = UDim2.new(math.random(), 0, -0.1, 0)
 				end
 			end
 		end)
-		wait(0.12)
+		wait(0.1)
 	end
 end
 
--- ==================== UI CREATION ====================
+-- ==================== NEW YEAR UI ====================
 function AR2Tool:CreateModernUI()
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "AR2_Cheats_UI"
@@ -512,10 +459,11 @@ function AR2Tool:CreateModernUI()
 	screenGui.ResetOnSpawn = false
 	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
+	-- Snow effect
 	createSnowEffect(screenGui)
 
 	local main = Instance.new("Frame")
-	main.Size = UDim2.new(0, 680, 0, 440)
+	main.Size = UDim2.new(0, 680, 0, 420)
 	main.Position = UDim2.new(0.5, -340, 0.1, 0)
 	main.BackgroundColor3 = Color3.fromRGB(10, 25, 10)
 	main.BackgroundTransparency = 0.25
@@ -538,20 +486,19 @@ function AR2Tool:CreateModernUI()
 	title.Size = UDim2.new(0, 340, 1, 0)
 	title.Position = UDim2.new(0, 12, 0, 0)
 	title.BackgroundTransparency = 1
-	title.Text = "🎄 RBXL CHEATS • AR2 • v2.6"
-	title.TextColor3 = Color3.fromRGB(255, 220, 100)
+	title.Text = "🎄 AR2 CHEATS • " .. self.Version .. " • NEW YEAR"
+	title.TextColor3 = Color3.fromRGB(255, 220, 100) -- gold
 	title.TextSize = 16
 	title.Font = Enum.Font.GothamBlack
 	title.Parent = topBar
 
-	-- ✅ Точный текст из канала
 	local tg = Instance.new("TextLabel")
-	tg.Size = UDim2.new(0, 400, 1, 0)
-	tg.Position = UDim2.new(0.5, -200, 0, 0)
+	tg.Size = UDim2.new(0, 200, 1, 0)
+	tg.Position = UDim2.new(0.5, -100, 0, 0)
 	tg.BackgroundTransparency = 1
-	tg.Text = "Официальный канал RBXL CHEATS скрипты и новости Roblox."
+	tg.Text = "t.me/rbxlcheats"
 	tg.TextColor3 = Color3.fromRGB(200, 240, 200)
-	tg.TextSize = 11
+	tg.TextSize = 12
 	tg.Font = Enum.Font.Gotham
 	tg.Parent = topBar
 
@@ -599,15 +546,15 @@ function AR2Tool:CreateModernUI()
 	tabs.Parent = main
 
 	local content = Instance.new("Frame")
-	content.Size = UDim2.new(1, -20, 0, 310)
+	content.Size = UDim2.new(1, -20, 0, 290)
 	content.Position = UDim2.new(0, 10, 0, 86)
 	content.BackgroundTransparency = 1
 	content.Parent = main
 
-	local mainTab = self:CreateTab("ГЛАВНАЯ", 0, tabs, true)
-	local visualTab = self:CreateTab("ВИЗУАЛ", 1, tabs, false)
-	local combatTab = self:CreateTab("БОЙ", 2, tabs, false)
-	local movementTab = self:CreateTab("ДВИЖЕНИЕ", 3, tabs, false)
+	local mainTab = self:CreateTab("MAIN", 0, tabs, true)
+	local visualTab = self:CreateTab("VISUAL", 1, tabs, false)
+	local combatTab = self:CreateTab("COMBAT", 2, tabs, false)
+	local movementTab = self:CreateTab("MOVEMENT", 3, tabs, false)
 
 	local mainContent = self:CreateMainTab(content)
 	local visualContent = self:CreateVisualTab(content)
@@ -619,6 +566,7 @@ function AR2Tool:CreateModernUI()
 	combatContent.Visible = false
 	movementContent.Visible = false
 
+	-- Tab switching
 	local function switchTab(activeTab, activeContent, others, otherContents)
 		activeTab.BackgroundColor3 = Color3.fromRGB(60, 100, 60)
 		activeContent.Visible = true
@@ -651,14 +599,14 @@ function AR2Tool:CreateModernUI()
 		end
 	end)
 
-	-- Footer with exact channel text
+	-- Footer
 	local footer = Instance.new("TextLabel")
 	footer.Size = UDim2.new(1, 0, 0, 22)
 	footer.Position = UDim2.new(0, 0, 1, -22)
 	footer.BackgroundTransparency = 1
-	footer.Text = "Официальный канал RBXL CHEATS скрипты и новости Roblox."
+	footer.Text = "📢 Official Channel: t.me/rbxlcheats"
 	footer.TextColor3 = Color3.fromRGB(180, 220, 180)
-	footer.TextSize = 11
+	footer.TextSize = 12
 	footer.Font = Enum.Font.Gotham
 	footer.Parent = main
 
@@ -693,7 +641,7 @@ function AR2Tool:CreateMainTab(parent)
 	local keyInput = Instance.new("TextBox")
 	keyInput.Size = UDim2.new(0.55, 0, 0, 36)
 	keyInput.Position = UDim2.new(0.22, 0, 0, 20)
-	keyInput.PlaceholderText = "Введите ключ активации..."
+	keyInput.PlaceholderText = "Enter activation key..."
 	keyInput.Text = ""
 	keyInput.BackgroundColor3 = Color3.fromRGB(30, 60, 30)
 	keyInput.TextColor3 = Color3.fromRGB(250, 255, 240)
@@ -702,7 +650,7 @@ function AR2Tool:CreateMainTab(parent)
 	local activateBtn = Instance.new("TextButton")
 	activateBtn.Size = UDim2.new(0.28, 0, 0, 36)
 	activateBtn.Position = UDim2.new(0.68, 0, 0, 20)
-	activateBtn.Text = "⚡ АКТИВИРОВАТЬ"
+	activateBtn.Text = "⚡ ACTIVATE"
 	activateBtn.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
 	activateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	activateBtn.TextSize = 12
@@ -713,7 +661,7 @@ function AR2Tool:CreateMainTab(parent)
 	infoLabel.Size = UDim2.new(1, -20, 0, 190)
 	infoLabel.Position = UDim2.new(0, 10, 0, 70)
 	infoLabel.BackgroundTransparency = 1
-	infoLabel.Text = "Apocalypse Rising 2 • Новогодняя версия\n\n✨ Функции:\n• ESP игроков (красный, до 2000 м)\n• ESP зомби (зелёный, до 2000 м)\n• Aimbot по клику\n• No Recoil & No Reload\n• Полёт и NoClip\n• Настройка дистанции в ВИЗУАЛ\n\n⚠️ Функции с риском бана помечены"
+	infoLabel.Text = "Apocalypse Rising 2 • New Year Edition\n\n✨ Features:\n• Player ESP (1500m)\n• Zombie/Boss Highlight\n• Real Aimbot (on click)\n• No Recoil & No Reload\n• Fly & NoClip\n• Falling snow UI effect\n\n⚠️ HIGH-RISK functions show warnings"
 	infoLabel.TextColor3 = Color3.fromRGB(230, 250, 230)
 	infoLabel.TextSize = 12
 	infoLabel.Font = Enum.Font.Gotham
@@ -726,9 +674,9 @@ function AR2Tool:CreateMainTab(parent)
 		if success then
 			keyInput.Visible = false
 			activateBtn.Visible = false
-			infoLabel.Text = "✅ " .. message .. "\n\n🎄 С Новым Годом!\n\n🔫 Все функции разблокированы!\nRBXL CHEATS • v2.6"
+			infoLabel.Text = "✅ " .. message .. "\n\n🎄 Happy New Year!\n\n🔫 All features unlocked!\nAR2 CHEATS • " .. self.Version
 		else
-			infoLabel.Text = "❌ " .. message .. "\n\n🔑 Ключ: AR2-WARZONE-FREE\n📢 Официальный канал RBXL CHEATS"
+			infoLabel.Text = "❌ " .. message .. "\n\n🔑 Key: AR2-WARZONE-FREE\n📢 t.me/rbxlcheats"
 		end
 	end)
 
@@ -741,40 +689,12 @@ function AR2Tool:CreateVisualTab(parent)
 	content.BackgroundTransparency = 1
 	content.Parent = parent
 
-	self:CreateFeatureButton("🔴 ESP Игроков", "Красные хитбоксы сквозь стены", 10, 10, content, function()
+	self:CreateFeatureButton("🔴 Player ESP (1500m)", "See players through walls", 10, 10, content, function()
 		self:ToggleESP()
 	end)
 
-	self:CreateFeatureButton("🟢 ESP Зомби", "Зелёные хитбоксы на всех зомби", 10, 60, content, function()
+	self:CreateFeatureButton("🧟 Zombie Highlight", "Red boxes on all zombies/bosses", 10, 60, content, function()
 		self:ToggleZombieESP()
-	end)
-
-	-- Distance Slider
-	local distLabel = Instance.new("TextLabel")
-	distLabel.Size = UDim2.new(0.45, 0, 0, 24)
-	distLabel.Position = UDim2.new(10, 110, 0, 0)
-	distLabel.BackgroundTransparency = 1
-	distLabel.Text = "Макс. дистанция: " .. self.MaxDistance .. " м"
-	distLabel.TextColor3 = Color3.fromRGB(220, 240, 220)
-	distLabel.TextSize = 12
-	distLabel.Font = Enum.Font.GothamBold
-	distLabel.Parent = content
-
-	local slider = Instance.new("Slider")
-	slider.Size = UDim2.new(0.8, 0, 0, 20)
-	slider.Position = UDim2.new(10, 140, 0, 0)
-	slider.MinValue = 100
-	slider.MaxValue = 2000
-	slider.Value = self.MaxDistance
-	slider.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
-	slider.ThumbImage = "rbxasset://textures/ui/SliderThumb.png"
-	slider.Parent = content
-
-	slider.Changed:Connect(function()
-		if slider.Value then
-			self.MaxDistance = math.floor(slider.Value / 10) * 10 -- round to 10
-			distLabel.Text = "Макс. дистанция: " .. self.MaxDistance .. " м"
-		end
 	end)
 
 	return content
@@ -786,15 +706,15 @@ function AR2Tool:CreateCombatTab(parent)
 	content.BackgroundTransparency = 1
 	content.Parent = parent
 
-	self:CreateFeatureButton("🎯 Aimbot (ЛКМ)", "Автоприцел по игрокам и зомби", 10, 10, content, function()
+	self:CreateFeatureButton("🎯 Aimbot (Click)", "Auto-aim at players & zombies", 10, 10, content, function()
 		self:ToggleAimbot()
 	end)
 
-	self:CreateFeatureButton("🔄 No Recoil", "Полное отключение отдачи", 10, 60, content, function()
+	self:CreateFeatureButton("🔄 No Recoil", "Zero weapon kickback", 10, 60, content, function()
 		self:ToggleNoRecoil()
 	end)
 
-	self:CreateFeatureButton("🔄 No Reload", "Бесконечные патроны", 10, 110, content, function()
+	self:CreateFeatureButton("🔄 No Reload", "Infinite ammo, no reload", 10, 110, content, function()
 		self:ToggleNoReload()
 	end)
 
@@ -807,11 +727,11 @@ function AR2Tool:CreateMovementTab(parent)
 	content.BackgroundTransparency = 1
 	content.Parent = parent
 
-	self:CreateFeatureButton("🦅 Полёт", "Свободное перемещение в воздухе", 10, 10, content, function()
+	self:CreateFeatureButton("🦅 Fly", "Fly over the map", 10, 10, content, function()
 		self:ToggleFly()
 	end)
 
-	self:CreateFeatureButton("👻 NoClip", "Проход сквозь любые объекты", 10, 60, content, function()
+	self:CreateFeatureButton("👻 NoClip", "Walk through walls", 10, 60, content, function()
 		self:ToggleNoClip()
 	end)
 
@@ -870,9 +790,9 @@ else
 	player.CharacterAdded:Connect(init)
 end
 
-print("✅ RBXL CHEATS — Apocalypse Rising 2 v2.6 загружен!")
-print("🎄 Новогодняя версия с настройкой дистанции до 2000 м")
-print("📢 Официальный канал RBXL CHEATS скрипты и новости Roblox.")
-print("🔑 Ключ активации: AR2-WARZONE-FREE")
-print("⚠️ Внимание - канал не несет ответственность за использование скриптов...")
-print("⌨️ Нажмите Insert, чтобы открыть меню")
+print("✅ RBXL CHEATS — Apocalypse Rising 2 " .. AR2Tool.Version .. " loaded!")
+print("🎄 New Year Edition with Snow UI!")
+print("📢 Official Channel: https://t.me/rbxlcheats")
+print("🔑 Key: AR2-WARZONE-FREE")
+print("⚠️ Use HIGH-RISK features responsibly!")
+print("⌨️ Press Insert to open menu")
